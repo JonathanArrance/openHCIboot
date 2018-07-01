@@ -1,0 +1,52 @@
+#!/bin/bash
+# zero_connect daemon
+# chkconfig: 345 20 80
+# description: Zero Connect deamon 
+# processname: zero_connect_compute_node
+
+PATH=/bin:/usr/bin:/sbin:/usr/sbin
+DAEMON=/usr/local/lib/python2.7/transcirrus/core/client.sh
+NAME=zero_connect_compute_node
+PIDFILE=/var/run/$NAME.pid
+#SCRIPTNAME=/etc/init.d/$NAME
+
+test -e $DAEMON || exit 0
+
+. /lib/lsb/init-functions
+
+case "$1" in
+  start)
+     log_success_msg "Starting Zero Connect Compute Node"
+     start_daemon -p $PIDFILE $DAEMON
+     PID=`ps x |grep '/usr/local/bin/python2.7 /usr/local/lib/python2.7/transcirrus/core/cn_sn_client.py' | head -1 | awk '{print $1}'`
+     echo $PID > $PIDFILE
+   ;;
+  stop)
+     log_success_msg "Stopping Zero Connect Compute Node"
+     killproc -p $PIDFILE $DAEMON
+     PID=`ps x |grep '/usr/local/bin/python2.7 /usr/local/lib/python2.7/transcirrus/core/cn_sn_client.py' | head -1 | awk '{print $1}'`
+     kill -9 $PID
+     log_success_msg $PID
+   ;;
+  force-reload|restart)
+     $0 stop
+     $0 start
+   ;;
+  status)
+     #pidofproc -p $PIDFILE $DAEMON atd && exit 0 || exit $?
+     PID=`ps x |grep '/usr/local/bin/python2.7 /usr/local/lib/python2.7/transcirrus/core/cn_sn_client.py' | head -1 | awk '{print $1}'`
+     if [[ `pidof -x /usr/local/bin/python2.7 cn_sn_client.py` -eq $PID ]]; then
+         echo 'Zero Connect Compute Node is running' $PID
+     else
+         if [[ `pidof -x /usr/local/bin/python2.7 cn_sn_client.py` -ne $PID ]]; then
+             echo 'Zero Connect Compute Node is dead'
+         fi
+     fi
+   ;;
+ *)
+   echo "Usage: /etc/init.d/cn_zero_connect {start|stop|restart|force-reload|status}"
+   exit 1
+  ;;
+esac
+
+exit 0
