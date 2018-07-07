@@ -49,14 +49,6 @@ else
     echo "NETMASK=$MASK" >> /etc/sysconfig/network-scripts/ifcfg-$PXE_INTERFACE
 fi
 
-#keep getting error atthis if statement
-#if [ grep -q "dhcp" /etc/sysconfig/network-scripts/ifcfg-$PXE_INTERFACE ]; then
-#    echo "Setting the PXE interface to static ip $IP."
-#    sed -i -e 's/BOOTPROTO\="dhcp"/BOOTPROTO\="static"/' /etc/sysconfig/network-scripts/ifcfg-$PXE_INTERFACE
-#    echo "IPADDR=$IP" >> /etc/sysconfig/network-scripts/ifcfg-$PXE_INTERFACE
-#    echo "NETMASK=$MASK" >> /etc/sysconfig/network-scripts/ifcfg-$PXE_INTERFACE
-#fi
-
 #check if the iso is available
 if [ ! -f ~/$ISO ];
   then echo "The iso file does not exist."
@@ -76,10 +68,7 @@ yum -y update || { echo "Could not update CentOS 7 to the latest updates."; exit
 
 #install the packages needed
 echo 'Installing CentOS 7 base packages.'
-yum install -y epel-release net-tools wget || { echo "Could not download neccessary packages."; exit 1; }
-yum install -y net-tools
-yum install -y wget
-yum install -y vsftpd
+yum install -y vsftpd tftp-server epel-release net-tools wget || { echo "Could not download neccessary packages."; exit 1; }
 
 echo 'Installing syslinux pxe boot server.'
 yum install -y syslinux || { echo "Could not download syslinux."; exit 1; }
@@ -88,47 +77,53 @@ mkdir -p /opt/isorepo
 mkdir -p /mnt/cent7
 mv ~/$ISO /opt/isorepo/$ISO
 echo 'Automounting the CentOS 7 install iso.'
-mount /opt/isorepo/$ISO /mnt/cent7
-echo "mount /opt/isorepo/$ISO /mnt/cent7" >> /etc/rc.local
+mount /opt/isorepo/$ISO /mnt/cent7 || { echo "Mounting CentOS 7 ISO."; exit 1; }
+#echo "mount /opt/isorepo/$ISO /mnt/cent7" >> /etc/rc.local
+cp -rf /mnt/cent7/* /var/ftp/pub/ || { echo "Copying all CentOS 7 files to ftp directory."; exit 1; }
+umount /mnt/cent7 
 
 echo 'Installing dnsmasq for dhcp and tftpboot services.'
 yum install -y dnsmasq || { echo "Could not download dnsmasq."; exit 1; }
 
 echo 'Configureing dnsmaq dhcp and tftpboot.'
-mkdir -p /opt/openhci || { echo "Could not create /opt/zerostack"; exit 1; }
-chmod 777 /opt/openhci || { echo "Could chnage permissions on /opt/zerostack"; exit 1; }
-mkdir -p /opt/openhci/pxelinux/pxelinux.cfg || { echo "Could not create /opt/zerostack/pxelinux/pxelinux.cfg"; exit 1; }
+mkdir -p /opt/openhci || { echo "Could not create /opt/openhci"; exit 1; }
+chmod 777 /opt/openhci || { echo "Could change permissions on /opt/openhci"; exit 1; }
+mkdir -p /opt/openhci/pxelinux.cfg || { echo "Could not create /opt/openhci/pxelinux.cfg"; exit 1; }
+mkdir -p /opt/openhci/redhat-installer/cent-7 || { echo "Could not create /opt/openhci/redhat-installer/cent-7"; exit 1; }
+cp /mnt/cent7/images/pxeboot/* /opt/openhci/redhat-installer/cent-7/ || { echo "Could not copy micro kernel to cent7 directory."; exit 1; }
 
 echo 'Adding the pxeboot files to the tftp directory.'
-cp -v /usr/share/syslinux/pxelinux.0 /opt/openhci
-cp -v /usr/share/syslinux/mboot.c32 /opt/openhci
-cp -v /usr/share/syslinux/menu.c32 /opt/openhci
-cp -v /usr/share/syslinux/memdisk /opt/openhci
-cp -v /usr/share/syslinux/chain.c32 /opt/openhci
-cp -v /usr/share/syslinux/vesamenu.c32 /opt/openhci
+cp -v /usr/share/syslinux/* /opt/openhci
 
 #need to build the ks files for the 
 echo 'Creating the default boot file.'
-cat > /opt/openhci/pxelinux/pxelinux.cfg/default <<EOF
-default install
-TIMEOUT 60
+cat > /opt/openhci/pxelinux.cfg/default <<EOF
+default menu.c32
+prompt 0
+timeput 60
 ONTIMEOUT BootLocal
 
 label BootLocal
       menu label ^Local OS boot
       menu default
       localboot 0
+      
+label CentOS7-1804
+        menu label ^CentOS7-1804 install
+        menu CentOS7
+        kernel /redhat-installer/cent-7/vmlinuz
+        append method=ftp://$IP/pub vga=788 auto=true priority=critical initrd=redhat-installer/cent-7/initrd.img
 
 label CoreNode
         menu label ^CoreNode install
         menu Core-vBeta
-        kernel /opt/openhci/cent-7/vmlinuz
+        kernel /cent7/vmlinuz
         append inst.ks=http://$IP/rhat_ic/ciac_files/version23_cent7/anaconda-openhci.cfg ksdevice=link vga=788 auto=true priority=critical initrd=redhat-installer/cent-7/initrd.img
 EOF
 
 echo 'Configureing dnsmasq.'
 sed -i -e "s/\#interface=/interface=${PXE_INTERFACE}/g" /etc/dnsmasq.conf || { echo "Could not set pxe boot interface."; exit 1; }
-sed -i -e 's/\#dhcp-boot\=pxelinux.0/dhcp-boot\=pxelinux\/pxelinux.0/g' /etc/dnsmasq.conf || { echo "Could not set pxeboot file."; exit 1; }
+sed -i -e 's/\#dhcp-boot\=pxelinux.0/dhcp-boot\=pxelinux.0/g' /etc/dnsmasq.conf || { echo "Could not set pxeboot file."; exit 1; }
 sed -i -e 's/\#enable-tftp/enable-tftp/g' /etc/dnsmasq.conf || { echo "Could not enable tftp in dnsmasq."; exit 1; }
 sed -i -e 's/\#tftp-root\=\/var\/ftpd/tftp-root\=\/opt\/openhci/g' /etc/dnsmasq.conf || { echo "Could not set the tftp root"; exit 1; }
 echo "dhcp-range=$DHCP_RANGE" >> /etc/dnsmasq.conf || { echo "Could not set the dhcp range."; exit 1; }
@@ -136,15 +131,10 @@ echo "dhcp-range=$DHCP_RANGE" >> /etc/dnsmasq.conf || { echo "Could not set the 
 echo 'Starting the dnsmasq service.'
 service dnsmasq start || { echo "Could not start the dnsmasq dhcp/tftpboot server."; exit 1; }
 chkconfig dnsmasq on || { echo "Could not enable the dhcp/tftpboot server."; exit 1; }
-
+systemctl start vsftpd || { echo "Could not start the ftp server."; exit 1; }
+systemctl enable vsftpd || { echo "Could not enable the ftp server."; exit 1; }
 #create a dummy pxe setup file if the script completes
 touch ~/pxe_setup
 
-#port=0
-#interface=enp8s0
-#bind-interfaces
-#dhcp-range=192.168.0.50,192.168.0.150,12h
-#enable-tftp
-#dhcp-match=set:efi-x86_64,option:client-arch,7
-#dhcp-boot=tag:efi-x86_64,grubx64.efi
-#tftp-root=/tmp/tftpboot
+echo "The PXE install server is set up and ready to set up OpenHCI."
+echo "Please reboot the server before setting up your first OpenHCI system."
