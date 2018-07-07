@@ -80,7 +80,7 @@ echo 'Automounting the CentOS 7 install iso.'
 mount /opt/isorepo/$ISO /mnt/cent7 || { echo "Mounting CentOS 7 ISO."; exit 1; }
 #echo "mount /opt/isorepo/$ISO /mnt/cent7" >> /etc/rc.local
 cp -rf /mnt/cent7/* /var/ftp/pub/ || { echo "Copying all CentOS 7 files to ftp directory."; exit 1; }
-umount /mnt/cent7 
+
 
 echo 'Installing dnsmasq for dhcp and tftpboot services.'
 yum install -y dnsmasq || { echo "Could not download dnsmasq."; exit 1; }
@@ -91,6 +91,7 @@ chmod 777 /opt/openhci || { echo "Could change permissions on /opt/openhci"; exi
 mkdir -p /opt/openhci/pxelinux.cfg || { echo "Could not create /opt/openhci/pxelinux.cfg"; exit 1; }
 mkdir -p /opt/openhci/redhat-installer/cent-7 || { echo "Could not create /opt/openhci/redhat-installer/cent-7"; exit 1; }
 cp /mnt/cent7/images/pxeboot/* /opt/openhci/redhat-installer/cent-7/ || { echo "Could not copy micro kernel to cent7 directory."; exit 1; }
+umount /mnt/cent7
 
 echo 'Adding the pxeboot files to the tftp directory.'
 cp -v /usr/share/syslinux/* /opt/openhci
