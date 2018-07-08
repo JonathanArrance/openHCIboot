@@ -93,6 +93,11 @@ mkdir -p /opt/openhci/redhat-installer/cent-7 || { echo "Could not create /opt/o
 cp /mnt/cent7/images/pxeboot/* /opt/openhci/redhat-installer/cent-7/ || { echo "Could not copy micro kernel to cent7 directory."; exit 1; }
 umount /mnt/cent7
 
+mkdir -p /var/ftp/pub/ksfiles || { echo "Could not create /var/ftp/pub/ksfiles"; exit 1; }
+cp -rf ./computenode /var/ftp/pub/ksfiles || { echo "Could not copy compute node files to /var/ftp/pub/ksfiles"; exit 1; }
+cp -rf ./corenode /var/ftp/pub/ksfiles || { echo "Could not copy core node files to /var/ftp/pub/ksfiles"; exit 1; }
+cp -rf ./storagenode /var/ftp/pub/ksfiles || { echo "Could not copy storage node files to /var/ftp/pub/ksfiles"; exit 1; }
+
 echo 'Adding the pxeboot files to the tftp directory.'
 #cp -rf /usr/share/syslinux/* /opt/openhci
 cp -v /usr/share/syslinux/pxelinux.0 /opt/openhci
@@ -125,7 +130,7 @@ label CoreNode
         menu label ^CoreNode install
         menu Core-vBeta
         kernel /cent7/vmlinuz
-        append inst.ks=http://$IP/rhat_ic/ciac_files/version23_cent7/anaconda-openhci.cfg ksdevice=link vga=788 auto=true priority=critical initrd=redhat-installer/cent-7/initrd.img
+        append inst.ks=ftp://$IP/pub/corenode/anaconda-ks.cfg ksdevice=link vga=788 auto=true priority=critical initrd=redhat-installer/cent-7/initrd.img
 EOF
 
 echo 'Configureing dnsmasq.'
