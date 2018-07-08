@@ -94,7 +94,7 @@ cp /mnt/cent7/images/pxeboot/* /opt/openhci/redhat-installer/cent-7/ || { echo "
 umount /mnt/cent7
 
 echo 'Adding the pxeboot files to the tftp directory.'
-cp -v /usr/share/syslinux/* /opt/openhci
+cp -rf /usr/share/syslinux/* /opt/openhci
 
 #need to build the ks files for the 
 echo 'Creating the default boot file.'
