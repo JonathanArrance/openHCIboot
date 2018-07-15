@@ -131,6 +131,18 @@ label CoreNode
         menu Core-vBeta
         kernel /cent7/vmlinuz
         append inst.ks=ftp://$IP/pub/corenode/anaconda-ks.cfg ksdevice=link vga=788 auto=true priority=critical initrd=redhat-installer/cent-7/initrd.img
+
+label ComputeNode
+        menu label ^ComputeNode install
+        menu Compute-vBeta
+        kernel /cent7/vmlinuz
+        append inst.ks=ftp://$IP/pub/computenode/anaconda-ks.cfg ksdevice=link vga=788 auto=true priority=critical initrd=redhat-installer/cent-7/initrd.img
+
+label StorageNode
+        menu label ^StorageNode install
+        menu Storage-vBeta
+        kernel /cent7/vmlinuz
+        append inst.ks=ftp://$IP/pub/storagenode/anaconda-ks.cfg ksdevice=link vga=788 auto=true priority=critical initrd=redhat-installer/cent-7/initrd.img
 EOF
 
 echo 'Configureing dnsmasq.'
